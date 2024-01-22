@@ -1,0 +1,199 @@
+clear;
+selectall;
+delete;
+cleardcard;
+switchtolayout;
+
+#Input parameters (initial geometries)
+gap=[500]*1e-9; #top and bottom stripe gap 
+h_top=170e-9; #top stripe waveguide core thickness 
+h_bottom=170e-9; #bottom stripe waveguide core thickness 
+etch_angle=[90]*pi/180; #etching angle in radian 
+Ring_width =[1.2]*1e-6; #ring width  
+h_down=8e-6; #thickness of bottom cladding SiO2
+h_up=8e-6; #thickness of upper cladding SiO2 
+h_substrate=4e-6; #thickness of substrat Si 
+R=[200]*1e-6; #bend radius in micrometer (for bended waveguide or ring resonator) 
+L=2*pi*R; #ring circumference
+power_loss = 10; #dB/m 
+
+
+##Setting Source
+Lambda_start = [1550]*1e-9; #initial wavelength 
+Lambda_stop = [1560]*1e-9; #final wavelength 
+freq = c/Lambda_start; #Frequency Center
+freq_s=c/Lambda_stop; #Frequency Signal 
+N=1; #number of trial modes 
+n_dat=5; #number of data points in frequency sweep 
+
+
+
+
+##Setting Material
+#material name and refractive index
+material_clad="SiO2 (Glass) - Palik Copy 1"; #Material untuk cladding 
+material_ring="Si3N4 (silicon nitride) - Luke et. al. Sellmeier 1 1"; #Material untuk waveguide TM Mode
+n_clad = getindex(material_clad,freq);
+n_ring=getindex(material_ring,freq);
+
+#margin dimension 
+x_margin = 8e-6;
+y_margin = 8e-6;
+
+#system total dimension 
+x_span =24e-6; 
+y_span = 24e-6; 
+z_span=0.6e-6;
+
+#simulation region dimension 
+x_span_sim=Ring_width+2*x_margin;
+y_span_sim=840e-9+2*y_margin;
+
+#dimensi mesh
+x_span_mesh=3.2e-6;
+y_span_mesh=2e-6;
+z_span_mesh=z_span;
+dm = 0.030e-6; #smallest global mesh size
+dn = 0.025e-6; #smallest local mesh size 
+
+##Koordinat Sistem
+#coordinate Pusat Ring
+Ring_x = 0;
+Ring_y = 0; #center WG bawah 
+Ring_z = 0; 
+
+
+##Creating Structure Group for Ring/Waveguide Core##
+addstructuregroup;
+set("name","Ring");
+set("x",Ring_x);
+set("y",Ring_y);
+set("z",Ring_z);
+adduserprop("etch_angle",0,etch_angle); #0 = number, etching angle 
+adduserprop("material",1,material_ring); #1=string
+adduserprop("width",2,Ring_width); #2 length = waveguide width 
+adduserprop("gap",2,gap); #2 length = gap of top and bottom stripe 
+adduserprop("top_thickness",2,h_top);
+adduserprop("bottom_thickness",2,h_bottom);
+adduserprop("z_span",2,z_span);
+set("construction group",1);
+
+
+###Creating Top and Bottom Stripe for Ring/Waveguide Core###
+set("script",'
+###Top Stripe###
+lx_up_top=width; #width of top waveguide upperside
+lx_base_top=width+2*top_thickness/tan(etch_angle); #width of top waveguide bottomside
+V_top=matrix(4,2); #matrix for vertices of top stripe waveguide 
+#Koordinat [x,y]
+V_top(1,1:2)=[-lx_base_top/2,gap/2]; #bottom left
+V_top(2,1:2)=[-lx_up_top/2,gap/2+top_thickness]; #top left
+V_top(3,1:2)=[lx_up_top/2,gap/2+top_thickness]; #top right
+V_top(4,1:2)=[lx_base_top/2,gap/2]; #bottom right 
+addpoly;
+set("name","top_stripe");
+set("z span",z_span);
+set("material",material);
+set("vertices",V_top);
+
+##Bottom Stripe###
+lx_up_bottom=width+2*(gap+top_thickness)/tan(etch_angle); #lebar bagian atas bottom stripe bus 
+lx_base_bottom=width+2*(gap+top_thickness+bottom_thickness)/tan(etch_angle); #lebar bagian bawah bottom stripe bus
+V_bottom=matrix(4,2); #matrix untuk vertice bottom stripe bus 
+#Koordinat [x,y]
+V_bottom(1,1:2)=[-lx_base_bottom/2,-(gap/2+bottom_thickness)]; #kiri bawah 
+V_bottom(2,1:2)=[-lx_up_bottom/2,-gap/2]; #kiri atas
+V_bottom(3,1:2)=[lx_up_bottom/2,-gap/2]; #kanan atas
+V_bottom(4,1:2)=[lx_base_bottom/2,-(gap/2 + bottom_thickness)]; #kiri bawah 
+addpoly;
+set("name","bottom_stripe");
+set("z span",z_span);
+set("material",material);
+set("vertices",V_bottom);
+');
+
+###Creating Cladding Area
+addrect; #adding rectangle shaped structure
+set("name","Cladding");
+set("material",material_clad);
+set("x",Ring_x);
+set("y",Ring_y);
+set("z",Ring_z);
+set("x span",x_margin);
+set("y span",y_margin);
+set("z span",z_span);
+
+
+###Simulation FDE Region###
+# add simulation region
+addfde;
+set("solver type","2D Z normal"); #setting geometry of mesh
+set("x",0);
+set("x span", x_margin);
+set("y",0);
+set("y span", y_margin);
+set("z",0); 
+set("define x mesh by","maximum mesh step");
+set("define y mesh by","maximum mesh step");
+set("dx",dm); 
+set("dy",dm);
+set("x min bc","PML"); #setting boundary condition of mesh 
+set("x max bc","PML");
+set("y min bc","Metal");
+set("y max bc","Metal");
+set("fit materials with multi-coefficient model",0);
+
+
+#adding mesh 
+addmesh;
+set('enabled',1); #0=disable mesh ; 1=enable mesh 
+set("x min",-x_span_mesh/2);
+set("x max",x_span_mesh/2); 
+set("y min",-y_span_mesh/2);
+set("y max", y_span_mesh/2);
+set("z min", -z_span_mesh/2);
+set("z max", z_span_mesh/2);
+set("dx", dn);
+set("dy", dn);
+set("dz", dn);
+
+
+#seting Eigen mode solver
+setanalysis("wavelength",Lambda_start);
+setanalysis("use max index",true);
+setanalysis("bent waveguide",1); #0=no bending ; 1=bending on 
+setanalysis("bend radius",R);
+setanalysis("number of trial modes",N); #you can adjust is as much as you need
+setanalysis("bend orientation",180);
+setanalysis("bend location","simulation center");
+findmodes;
+
+
+##Frequency Sweep
+select("FDE::data::mode1");
+	setanalysis("track selected mode",1); #1=true;0=false
+	setanalysis("stop wavelength",Lambda_stop);
+	setanalysis("number of points",n_dat);
+	setanalysis("number of test modes",1); #you can change the number 1 as many as needed
+	setanalysis("detailed dispersion calculation",1); #1=true ; 0=false 
+	setanalysis("store mode profiles while tracking",1); #1=true ; 0=false 
+frequencysweep;
+
+
+#Plotting Dispersion Parameter and Group Velocity Dispersion 
+D = getdata("frequencysweep","D");
+f = getdata("frequencysweep","f");
+lambda = c/f;
+
+#Plot for Dispersion Parameter
+plot(lambda*1e6,D, "wavelength (microns)","Dispersion (ps/(nm x km)");
+legend("Mode1");
+
+#Plot for GVD 
+GVD_Mode1 = -lambda^2/(2*pi*c)*pinch(D,2,1);
+plot(lambda*1e6,GVD_Mode1*1e24, "wavelength (microns)","GVD (ps^2/m)");
+legend("Mode1","Mode2");
+
+
+matlabsave("...");
+cd("...");
