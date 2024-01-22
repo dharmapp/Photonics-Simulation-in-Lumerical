@@ -16,15 +16,15 @@ switchtolayout;
 
 #Input geometrical parameters for the system
 gap=[100]*1e-9; #top and bottom stripe gap in nano meter
-h_top=175e-9; #top stripe waveguide thickness in nanometer
-h_bottom=70e-9; #bottom stripe waveguie thickness in nanometer
-etch_angle=[82]*pi/180; #etching angle in raidan, for rectangular cross section waveguide set it to 90 degree
-Ring_width =[1.1]*1e-6; #waveguide width in micrometer 
+h_top=[170]*1e-9; #top stripe waveguide thickness in nanometer
+h_bottom=[170]*1e-9; #bottom stripe waveguie thickness in nanometer
+etch_angle=[90]*pi/180; #etching angle in raidan, for rectangular cross section waveguide set the number in the bracket to 90 degree
+Ring_width =[1.2]*1e-6; #waveguide width in micrometer 
 h_down=8e-6; #thickness of bottom cladding SiO2 in micrometer 
 h_up=8e-6; #thickness of upper cladding SiO2 in micrometer 
 h_substrate=4e-6; #Substrate thickness 
-R=[161.05]*1e-6; #bend radius in micrometer (for bended waveguide or ring resonator)
-L=2*pi*R; #Panjang keliling ring 
+R=[200]*1e-6; #bend radius in micrometer (for bended waveguide or ring resonator)
+L=2*pi*R; #Ring Circumference 
 
 #source parameter, nonlinear and loss parameter
 Lambda_pump = [1550]*1e-9; #pump wavelength in nanometer
@@ -245,14 +245,14 @@ FSR_Pump=Lambda_pump^2 /(ng_Pump*L); #FSR in wavelength
 switchtolayout;																																							
 
 
-#Definisikan Panjang Gelombang untuk Signal dan Idler Saat Resonance
+#Define Wavelength for Signal and Idler at the Resonance
 Lambda_signal = abs(FSR_Pump) + Lambda_pump; #Panjang gelombang signal
 freq_s = c/Lambda_signal; #Frekuensi signal 
 freq_i = 2*freq_p - freq_s; #Frekuensi idler 
 Lambda_idler =c/freq_i; #Panjang gelombang idler
                  
 
-#Menghitung propagation constant untuk signal dan idler
+#Calculating Propagation Constant of Signal and Idler
 lambda=zeros(2,1);
 lambda(1,1)=Lambda_signal; #Signal 
 lambda(2,1)=Lambda_idler; #Idler
