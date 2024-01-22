@@ -1,0 +1,235 @@
+### Calculating Nonlinear Coefficient from Scalar Model vs Waveguide Core Thickness Dependencies###
+### For single or Double Stripe Waveguides based Ring Resonator 
+### by Dharma P. Permana
+### for questions email me at: dhp.permana@gmail.com 
+### References:
+### [1] Absil et al. 2000. Optics Letters vol.25, 8
+### [2] L. Zhang et al. 2014. Nanophotonics vol.3, 4-5
+
+clear;
+selectall;
+delete;
+cleardcard;
+switchtolayout;
+
+
+#Input parameters
+thick_array= [150]*1e-9:[150]*1e-9:[600]*1e-9; #array of core thickness variation for top and bottom stripe  
+gap=[0]*1e-9; #top and bottom stripe gap 
+h_top=[170]*1e-9; #top stripe waveguide core thickness 
+h_bottom=[170]*1e-9; #bottom stripe waveguide core thickness 
+etch_angle=[90]*pi/180; #etching angle in radian 
+Ring_width =[1.2]*1e-6; #ring width  
+h_down=8e-6; #thickness of bottom cladding SiO2
+h_up=8e-6; #thickness of upper cladding SiO2 
+h_substrate=4e-6; #thickness of substrat Si 
+R=[200]*1e-6; #bend radius in micrometer (for bended waveguide or ring resonator)  
+
+
+###source parameter, and nonlinear parameter 
+Lambda_pump = [1550]*1e-9; #pump wavelength in nanometer
+freq_p = c/Lambda_pump; #Frequency pump
+n2_core = 5.5e-18; #Kerr coefficient for waveguide core (in this case I used Si core)
+n2_clad = 2.79e-20; #Kerr coefficient for cladding (in this case I used SiO2 for cladding) 
+
+
+##Setting Material
+#material name and refractive index
+material_clad="SiO2 (Glass) - Palik Copy 1"; #Material untuk cladding 
+material_ring="Si3N4 (silicon nitride) - Luke et. al. Sellmeier 1 1"; #Material untuk waveguide TM Mode
+n_clad = getindex(material_clad,freq_p);
+n_ring=getindex(material_ring,freq_p);
+
+
+#margin dimension 
+x_margin = 8e-6;
+y_margin = 8e-6;
+
+#dimensi sistem
+x_span =24e-6; 
+y_span = 24e-6; 
+z_span=0.6e-6;
+
+#simulation region dimension 
+x_span_sim=Ring_width+2*x_margin;
+y_span_sim=840e-9+2*y_margin;
+
+#mesh dimension
+x_span_mesh=3.2e-6;
+y_span_mesh=2e-6;
+z_span_mesh=z_span;
+dm = [0.035]*1e-6; #Smallest Mesh Size (in micron) of All Simulation Region 
+dn = [0.020]*1e-6; #Smallest Mesh Size (in micron) of Localized Mesh Region  
+
+##System Coordinate
+#coordinate of ring center
+Ring_x = 0;
+Ring_y = 0; #center waveguide   
+Ring_z = 0; 
+
+##Setting Material
+#material name and refractive index
+material_clad="SiO2 (Glass) - Palik"; #Material for cladding 
+material_ring="Si (Silicon) - Palik"; #Material for core
+n_clad = getindex(material_clad,freq_p); #refractive index of cladding
+n_ring=getindex(material_ring,freq_p); #refractive index of core 
+
+
+##Creating Structure Group for Ring##
+addstructuregroup;
+set("name","Ring");
+set("x",Ring_x);
+set("y",Ring_y);
+set("z",Ring_z);
+adduserprop("etch_angle",0,etch_angle); #0 = number, etching angle 
+adduserprop("material",1,material_ring); #1=string
+adduserprop("width",2,Ring_width); #2 length = waveguide width 
+adduserprop("gap",2,gap); #2 length = gap of top and bottom stripe 
+adduserprop("top_thickness",2,h_top);
+adduserprop("bottom_thickness",2,h_bottom);
+adduserprop("z_span",2,z_span);
+set("construction group",1);
+
+###Creating Top and Bottom Stripe for Ring###
+set("script",'
+###Top Stripe###
+lx_up_top=width; #width of top waveguide upperside
+lx_base_top=width+2*top_thickness/tan(etch_angle); #width of top waveguide bottomside
+V_top=matrix(4,2); #matrix for vertices of top stripe waveguide 
+#Koordinat [x,y]
+V_top(1,1:2)=[-lx_base_top/2,gap/2]; #bottom left
+V_top(2,1:2)=[-lx_up_top/2,gap/2+top_thickness]; #top left
+V_top(3,1:2)=[lx_up_top/2,gap/2+top_thickness]; #top right
+V_top(4,1:2)=[lx_base_top/2,gap/2]; #bottom right 
+addpoly;
+set("name","top_stripe");
+set("z span",z_span);
+set("material",material);
+set("vertices",V_top);
+
+##Bottom Stripe###
+lx_up_bottom=width+2*(gap+top_thickness)/tan(etch_angle); #lebar bagian atas bottom stripe bus 
+lx_base_bottom=width+2*(gap+top_thickness+bottom_thickness)/tan(etch_angle); #lebar bagian bawah bottom stripe bus
+V_bottom=matrix(4,2); #matrix untuk vertice bottom stripe bus 
+#Koordinat [x,y]
+V_bottom(1,1:2)=[-lx_base_bottom/2,-(gap/2+bottom_thickness)]; #kiri bawah 
+V_bottom(2,1:2)=[-lx_up_bottom/2,-gap/2]; #kiri atas
+V_bottom(3,1:2)=[lx_up_bottom/2,-gap/2]; #kanan atas
+V_bottom(4,1:2)=[lx_base_bottom/2,-(gap/2 + bottom_thickness)]; #kiri bawah 
+addpoly;
+set("name","bottom_stripe");
+set("z span",z_span);
+set("material",material);
+set("vertices",V_bottom);
+');
+
+
+
+
+###Simulation FDE Region###
+# add simulation region
+addfde;
+set("background material",material_clad);
+set("solver type","2D Z normal"); #setting geometry of mesh
+set("x",0);
+set("x span", x_span_sim);
+set("y",0);
+set("y span", y_span_sim);
+set("z",0); 
+set("define x mesh by","maximum mesh step");
+set("define y mesh by","maximum mesh step");
+set("dx",dm); 
+set("dy",dm);
+set("x min bc","PML"); #setting boundary condition of mesh 
+set("x max bc","PML");
+set("y min bc","Metal");
+set("y max bc","Metal");
+set("fit materials with multi-coefficient model",0);
+
+
+#adding mesh 
+addmesh;
+set('enabled',1); #0=disable mesh ; 1=enable mesh 
+set("x min",-x_span_mesh/2);
+set("x max",x_span_mesh/2); 
+set("y min",-y_span_mesh/2);
+set("y max", y_span_mesh/2);
+set("z min", -z_span_mesh/2);
+set("z max", z_span_mesh/2);
+set("dx", dn);
+set("dy", dn);
+set("dz", dn);
+
+
+#seting Eigen mode solver
+setanalysis("wavelength",Lambda_pump);
+setanalysis("use max index",true);
+setanalysis("bent waveguide",0); #0=no bending ; 1=bending on 
+setanalysis("bend radius",R);
+setanalysis("number of trial modes",1);
+setanalysis("bend orientation",180);
+setanalysis("bend location","simulation center");
+
+
+#####Finding index of background/cladding
+select("Ring");
+set("enabled",0);
+findmodes;
+	idx_Bg_x=pinch(getdata("FDE::data::material","index_x")); #Pinch to erase singleton dimension  
+	idx_Bg_y=pinch(getdata("FDE::data::material","index_y")); #Pinch to erase singleton dimension
+switchtolayout;
+
+###Data Array Declaration
+gamma_array=zeros(length(thick_array),1); #Array for nonlinear coefficient data 
+Aeff_array=zeros(length(thick_array),1); #Array for effective mode area data 
+
+
+#Iteration regime
+for(j=1:length(thick_array)){
+	switchtolayout;
+	select("Ring");
+	set("enabled",0);
+	
+	#Variation of waveguide thickness 
+	set("top_thickness",thick_array(j));
+	set("bottom_thickness",thick_array(j));
+	
+	#Changing Mesh Dimension  
+	#select("mesh");
+	#set("x",0);
+	#set("y",0);
+	#set("z",0);
+	#set("x span",x_span_mesh);
+	#set("y max",2*(h_top+gap/2));
+	#set("y min",-2*(h_bottom+gap/2));
+	#set("z span",z_span_mesh);
+	#set("dx", dn);
+	#set("dy", dn);
+	#set("dz", dn);
+	
+	
+	##Collecting Data from Waveguides/Ring 
+	select("Ring");
+	set("enabled",1);
+	findmodes;
+	
+	#Taking data of the 1st mode 
+	ii=1; #Mode no-1 
+		getdata("FDE::data::mode"+num2str(ii),"TE polarization fraction"); #for collecting data of mode-j
+		dname="FDE::data::mode"+num2str(ii); #for input to deck card of data mode-j
+		copydcard(dname,"Pump"+num2str(j)); #changing data mode-j name into data Ring mode-j	
+		
+			##Taking mode-j data 
+			Aeff_array(j)=getdata("Pump"+num2str(j),"mode effective area"); #Effective Mode Area 
+	
+	#Calculating Gamma from Scalar Model 
+	gamma_array(j)=2*pi*freq_p*n2_core/(c*Aeff_array(j));
+}
+
+#plotting nonlinear coefficient vs waveguide thickness
+plot(2*thick_array*1e9,real(gamma_array),"Core Thickness [nm]","Nonlinearity Parameter [m^(-1) W^(-1)]");
+legend("Scalar Model Nonlinearity");
+
+##Saving as Matlab file 
+matlabsave("...");
+cd("...");	
